@@ -149,8 +149,10 @@ export default function App() {
     <View style={styles.container}>
       <View
         style={{
+          borderRadius: 320 / 2,
+
           width: 320,
-          height: 479,
+          height: 320,
           shadowColor: '#000',
           shadowOffset: {
             width: 0,
@@ -159,13 +161,15 @@ export default function App() {
           shadowOpacity: 0.48,
           shadowRadius: 8,
           elevation: 18,
+          transform: [{ scale: 0.2 }],
         }}
       >
         <Image
           source={require('./hamburguer.jpg')}
           style={{
+            borderRadius: 320 / 2,
             width: 320,
-            height: 479,
+            height: 320,
           }}
         />
       </View>
