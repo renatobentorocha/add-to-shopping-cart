@@ -1,12 +1,13 @@
-import { StatusBar } from 'expo-status-bar';
 import React, { useRef } from 'react';
 import { StyleSheet, Text, View, Image, Dimensions } from 'react-native';
+
 import {
   State,
   TapGestureHandler,
   TapGestureHandlerGestureEvent,
   TapGestureHandlerStateChangeEvent,
 } from 'react-native-gesture-handler';
+
 import Animated, {
   block,
   clockRunning,
@@ -25,8 +26,6 @@ import Animated, {
   diff,
   eq,
   useCode,
-  debug,
-  and,
 } from 'react-native-reanimated';
 import ShoppingCart from './src/components/svg/ShoppingCart';
 
@@ -34,17 +33,19 @@ const { width } = Dimensions.get('window');
 
 const withTimingCart = (
   clock: Animated.Clock,
-  toValue: Animated.Value<number>
+  toValue: Animated.Value<number>,
+  duration: number,
+  position: Animated.Value<number>
 ) => {
   const state: Animated.TimingState = {
     finished: new Animated.Value<number>(0),
     frameTime: new Animated.Value<number>(0),
-    position: new Animated.Value<number>(-90),
+    position,
     time: new Animated.Value<number>(0),
   };
 
   const config: Animated.TimingConfig = {
-    duration: 10000,
+    duration,
     easing: Easing.inOut(Easing.linear),
     toValue,
   };
@@ -80,12 +81,11 @@ const withTiming = (clock: Animated.Clock) => {
     cond(
       state.finished,
       [
+        stopClock(clock),
         set(state.finished, 0),
         set(state.frameTime, 0),
         set(state.time, 0),
         set(state.position, 0),
-        stopClock(clock),
-        0,
       ],
       state.position
     ),
@@ -99,35 +99,71 @@ const ADD_CHART_BUTTON_RADIUS = ADD_CHART_CONTAINER_WIDTH / 2;
 export default function App() {
   const buttonClock = useRef(new Animated.Clock()).current;
   const cartClock = useRef(new Animated.Clock()).current;
+  const productClock = useRef(new Animated.Clock()).current;
 
   const gestureState = useRef(new Animated.Value<State>(State.UNDETERMINED))
     .current;
+
   const gestureOldState = useRef(new Animated.Value<State>(State.UNDETERMINED))
     .current;
+
+  const progressCart = useRef(new Animated.Value<number>(-90)).current;
+
+  const progressProduct = useRef(new Animated.Value<number>(1)).current;
+
+  const progressButton = useRef(new Animated.Value<number>(0)).current;
 
   const position = useRef({
     translateX: new Animated.Value<number>(0),
     translateY: new Animated.Value<number>(0),
   }).current;
 
-  const progressCart = withTimingCart(
-    cartClock,
-    new Animated.Value<number>(width / 2 + 45)
+  const scale = add(0.0001, multiply(progressButton, sub(2, 0.0001)));
+
+  const isGoingUp = or(
+    greaterThan(diff(progressButton), 0),
+    eq(progressButton, 1)
   );
-  const progress = withTiming(buttonClock);
-
-  const scale = add(0.0001, multiply(progress, sub(2, 0.0001)));
-
-  const isGoingUp = or(greaterThan(diff(progress), 0), eq(progress, 1));
 
   const opacity = isGoingUp;
 
   useCode(
     () =>
-      cond(
-        and(eq(gestureOldState, State.ACTIVE), eq(gestureState, State.END)),
-        [startClock(buttonClock), startClock(cartClock)]
-      ),
+      block([
+        cond(eq(gestureState, State.BEGAN), [
+          startClock(buttonClock),
+          startClock(cartClock),
+          startClock(productClock),
+        ]),
+        cond(
+          clockRunning(productClock),
+          set(
+            progressProduct,
+            withTimingCart(
+              productClock,
+              new Animated.Value<number>(0.2),
+              1000,
+              new Animated.Value<number>(1)
+            )
+          )
+        ),
+        cond(
+          clockRunning(buttonClock),
+          set(progressButton, withTiming(buttonClock))
+        ),
+        cond(
+          clockRunning(cartClock),
+          set(
+            progressCart,
+            withTimingCart(
+              cartClock,
+              new Animated.Value<number>(width / 2 + 45),
+              3000,
+              new Animated.Value<number>(-90)
+            )
+          )
+        ),
+      ]),
     []
   );
 
@@ -147,7 +183,7 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <View
+      <Animated.View
         style={{
           borderRadius: 320 / 2,
 
@@ -161,7 +197,7 @@ export default function App() {
           shadowOpacity: 0.48,
           shadowRadius: 8,
           elevation: 18,
-          transform: [{ scale: 0.2 }],
+          transform: [{ scale: progressProduct }],
         }}
       >
         <Image
@@ -172,37 +208,41 @@ export default function App() {
             height: 320,
           }}
         />
-      </View>
-      <TapGestureHandler
-        onGestureEvent={onGestureEvent}
-        onHandlerStateChange={onGestureEvent}
-      >
-        <Animated.View
-          style={[styles.add_to_cart_container, { overflow: 'hidden' }]}
+        <TapGestureHandler
+          onGestureEvent={onGestureEvent}
+          onHandlerStateChange={onGestureEvent}
         >
-          <View
-            style={[StyleSheet.absoluteFill, { backgroundColor: '#696969' }]}
+          <Animated.View
+            style={[
+              styles.add_to_cart_container,
+              { overflow: 'hidden', transform: [{ scale: progressProduct }] },
+            ]}
           >
-            <Animated.View
-              style={{
-                opacity,
-                backgroundColor: '#B5A3A3',
-                borderRadius: ADD_CHART_BUTTON_RADIUS,
-                width: ADD_CHART_BUTTON_RADIUS * 2,
-                height: ADD_CHART_BUTTON_RADIUS * 2,
-                transform: [
-                  { translateX: multiply(-1, ADD_CHART_BUTTON_RADIUS) },
-                  { translateY: multiply(-1, ADD_CHART_BUTTON_RADIUS) },
-                  { translateX: position.translateX },
-                  { translateY: position.translateY },
-                  { scale },
-                ],
-              }}
-            />
-          </View>
-          <Text style={styles.add_to_cart_text}>Add to cart</Text>
-        </Animated.View>
-      </TapGestureHandler>
+            <View
+              style={[StyleSheet.absoluteFill, { backgroundColor: '#696969' }]}
+            >
+              <Animated.View
+                style={{
+                  opacity,
+                  backgroundColor: '#B5A3A3',
+                  borderRadius: ADD_CHART_BUTTON_RADIUS,
+                  width: ADD_CHART_BUTTON_RADIUS * 2,
+                  height: ADD_CHART_BUTTON_RADIUS * 2,
+                  transform: [
+                    { translateX: multiply(-1, ADD_CHART_BUTTON_RADIUS) },
+                    { translateY: multiply(-1, ADD_CHART_BUTTON_RADIUS) },
+                    { translateX: position.translateX },
+                    { translateY: position.translateY },
+                    { scale },
+                  ],
+                }}
+              />
+            </View>
+            <Text style={styles.add_to_cart_text}>Add to cart</Text>
+          </Animated.View>
+        </TapGestureHandler>
+      </Animated.View>
+
       <Animated.View
         style={{
           position: 'absolute',
