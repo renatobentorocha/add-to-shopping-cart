@@ -24,6 +24,7 @@ import Animated, {
 import ButtonRipple from './src/components/ButtonRipple';
 import Container from './src/components/Container';
 import ShoppingCart from './src/components/svg/ShoppingCart';
+import SuccessCheckMark from './src/components/svg/SuccessCheckMark';
 
 const { width } = Dimensions.get('window');
 
@@ -105,7 +106,7 @@ export default function App() {
             progressCart,
             withTimingCart(
               cartClock,
-              new Animated.Value<number>(width / 2),
+              new Animated.Value<number>(width / 2 + 45),
               1500,
               new Animated.Value<number>(-90),
               endCartAnimation
@@ -143,10 +144,26 @@ export default function App() {
     extrapolate: Extrapolate.CLAMP,
   });
 
+  const checkMarkOpacity = interpolate(productTranslateX, {
+    inputRange: [0, width / 2, width, width + 45],
+    outputRange: [0, 0.1, 0.5, 1],
+    extrapolate: Extrapolate.CLAMP,
+  });
+
   return (
     <View style={styles.container}>
       <Animated.View
         style={[
+          StyleSheet.absoluteFill,
+          { alignItems: 'center', justifyContent: 'center' },
+          { opacity: checkMarkOpacity },
+        ]}
+      >
+        <SuccessCheckMark width={180} height={180} />
+      </Animated.View>
+      <Animated.View
+        style={[
+          StyleSheet.absoluteFill,
           styles.container,
           { transform: [{ translateX: productTranslateX }] },
         ]}
